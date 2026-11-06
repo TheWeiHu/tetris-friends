@@ -1,0 +1,22 @@
+[Unit]
+Description=Beepboop Arena
+After=network.target
+
+[Service]
+User=beepboop-arena
+Group=beepboop-arena
+WorkingDirectory=/opt/beepboop-arena/current
+EnvironmentFile=/etc/beepboop-arena.env
+ExecStart=/opt/beepboop-arena/node/bin/node server/index.js
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+MemoryMax=256M
+CPUQuota=100%
+
+[Install]
+WantedBy=multi-user.target
