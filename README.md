@@ -7,7 +7,7 @@ npm ci
 npm start
 ```
 
-Open `http://127.0.0.1:55030`. Use arrows to move, Up/X and Z to rotate, Space to drop, and C/Shift to hold. Music starts only when enabled. **Korobeiniki**, the traditional melody associated with classic Tetris, plays in a new 3:29 chiptune arrangement with eight variations. It continues through rounds and results, crossfading only at the end of the complete arrangement. The score is in `scripts/compose-puzzle-sprint.py`.
+Open `http://127.0.0.1:55030`. Use arrows to move, Up/X and Z to rotate, Space to drop, and C/Shift to hold. Music is on by default, starts with the first interaction when autoplay is blocked, and remembers an explicit mute. **Korobeiniki**, the traditional melody associated with classic Tetris, plays in a new 3:29 chiptune arrangement with eight variations. It continues through rounds and results, crossfading only at the end of the complete arrangement. The score is in `scripts/compose-puzzle-sprint.py`.
 
 Attacks cancel incoming garbage first, then distribute each remaining row to one opponent, favoring players with less recent pressure. Garbage waits 1.8 seconds and enters at most four rows at a time on non-clearing locks. Piece sequences are identical; gravity accelerates every 30 seconds.
 
