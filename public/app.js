@@ -264,7 +264,7 @@ $('help').onclick=()=>{keys.clear();$('help-dialog').showModal();};
 $('help-dialog').querySelectorAll('.close-dialog,.close-help').forEach(el=>el.onclick=()=>{$('help-dialog').close();$('help').blur();});
 $('help-dialog').addEventListener('click',event=>{if(event.target===$('help-dialog')){const r=$('help-dialog').getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)$('help-dialog').close();}});
 $('sound').onclick=async()=>{try{const enabled=await audio.toggle();$('sound').setAttribute('aria-pressed',String(enabled));$('sound').setAttribute('aria-label',enabled?'Turn Music Off':'Turn Music On');$('sound-label').textContent=enabled?'Sound On':'Sound Off';$('sound').blur();}catch(error){toast(error.message);}};
-window.addEventListener('arena-audio',({detail})=>{const {enabled,title}=detail;$('sound').setAttribute('aria-pressed',String(enabled));$('sound').setAttribute('aria-label',enabled?'Turn Music Off':'Turn Music On');$('sound-label').textContent=enabled?'Sound On':'Sound Off';$('sound').title=enabled?`Now Playing: ${title}`:'Original Beepboop And Puzzle-Game Music';});
+window.addEventListener('arena-audio',({detail})=>{const {enabled,title}=detail;$('sound').setAttribute('aria-pressed',String(enabled));$('sound').setAttribute('aria-label',enabled?'Turn Music Off':'Turn Music On');$('sound-label').textContent=enabled?'Sound On':'Sound Off';$('sound').title=enabled?`Now Playing: ${title}`:'Classic Tetris Melody · Korobeiniki';});
 $('watch').onclick=()=>{watchedRound=round;$('result-dialog').close();};
 $('result-dialog').addEventListener('cancel',()=>{watchedRound=round;});
 $('rematch').onclick=()=>{practice=false;send({type:'rematch'});$('result-dialog').close();};

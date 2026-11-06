@@ -1,23 +1,47 @@
 export class ArenaAudio {
   constructor(){
-    this.enabled=false;this.ctx=null;this.track=0;this.mode='room';
-    this.tracks=['/assets/bounce-protocol.m4a','/assets/puzzle-sprint.m4a'];
-    this.music=new Audio(this.tracks[0]);this.music.preload='none';this.music.volume=.24;
-    this.music.addEventListener('ended',()=>this.select((this.track+1)%2));
-    this.music.addEventListener('error',()=>{this.enabled=false;this.announce();});
+    this.enabled=false;this.ctx=null;this.track=1;this.mode='room';this.generation=0;this.fading=false;
+    this.tracks=Array(2).fill('/assets/puzzle-sprint.m4a?v=2');
+    this.players=this.tracks.map((src,index)=>{
+      const music=new Audio(src);music.preload='none';music.volume=.24;
+      music.addEventListener('timeupdate',()=>{
+        if(this.enabled&&this.track===index&&Number.isFinite(music.duration)&&music.duration-music.currentTime<=2.5)this.select(1-index);
+      });
+      music.addEventListener('ended',()=>{if(this.enabled&&this.track===index)this.select(1-index);});
+      music.addEventListener('error',()=>{if(this.track===index){this.enabled=false;this.players.forEach(p=>p.pause());this.announce();}});
+      return music;
+    });
   }
-  announce(){window.dispatchEvent(new CustomEvent('arena-audio',{detail:{enabled:this.enabled,title:this.track?'Puzzle Sprint':'Beepboop Bounce'}}));}
-  select(track){
-    if(this.track===track)return;
-    this.track=track;this.music.src=this.tracks[track];
-    if(this.enabled)this.music.play().catch(()=>{this.enabled=false;this.announce();});
-    this.announce();
+  get music(){return this.players[this.track];}
+  announce(){window.dispatchEvent(new CustomEvent('arena-audio',{detail:{enabled:this.enabled,title:'Korobeiniki'}}));}
+  async select(track){
+    if(this.track===track||this.fading||!this.enabled)return;
+    const previous=this.track,generation=this.generation,next=this.players[track];this.fading=true;
+    next.currentTime=0;
+    try{
+      await next.play();
+      if(generation!==this.generation){next.pause();this.fading=false;return;}
+      const now=this.ctx.currentTime,fade=Math.min(2.5,Math.max(0,this.music.duration-this.music.currentTime));
+      this.gains[previous].gain.setValueAtTime(1,now);this.gains[previous].gain.linearRampToValueAtTime(0,now+fade);
+      this.gains[track].gain.setValueAtTime(0,now);this.gains[track].gain.linearRampToValueAtTime(1,now+fade);
+      this.track=track;this.announce();
+      this.transitionTimer=setTimeout(()=>{this.players[previous].pause();this.fading=false;},fade*1000+50);
+    }catch{this.fading=false;if(this.music.ended){this.enabled=false;this.announce();}}
   }
-  setMode(mode){if(mode===this.mode)return;this.mode=mode;this.select(mode==='battle'?1:0);}
+  setMode(mode){this.mode=mode;}
   async toggle(){
-    this.enabled=!this.enabled;
+    this.enabled=!this.enabled;this.generation++;clearTimeout(this.transitionTimer);
+    const generation=this.generation;
+    this.players.forEach(p=>p.pause());this.fading=false;
     if(this.enabled){
-      try{this.ctx ||= new (window.AudioContext||window.webkitAudioContext)();await this.ctx.resume();await this.music.play();}
+      try{
+        this.ctx ||= new (window.AudioContext||window.webkitAudioContext)();
+        this.gains ||= this.players.map(p=>{const gain=this.ctx.createGain();this.ctx.createMediaElementSource(p).connect(gain).connect(this.ctx.destination);return gain;});
+        this.gains.forEach((gain,i)=>{gain.gain.cancelScheduledValues(this.ctx.currentTime);gain.gain.setValueAtTime(i===this.track?1:0,this.ctx.currentTime);});
+        await this.ctx.resume();if(generation!==this.generation)return this.enabled;
+        await this.music.play();if(generation!==this.generation){if(!this.enabled)this.music.pause();return this.enabled;}
+        this.players[1-this.track].preload='auto';
+      }
       catch{this.enabled=false;this.music.pause();throw new Error('Audio could not start. Try Sound On again.');}
     }else this.music.pause();
     this.announce();return this.enabled;
