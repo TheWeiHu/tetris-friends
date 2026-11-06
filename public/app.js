@@ -188,7 +188,7 @@ function handleEvents(){
   for(const event of state.events){
     if(event.id<=eventId)continue;eventId=event.id;
     if(event.type==='clear'&&event.player===state.me){
-      audio.play('clear');const text=event.spin?'T-SPIN!':event.lines===4?'FOUR-LINE BOOP!':event.combo>0?`${event.combo+1}× COMBO!`:['','NICE CLEAR!','DOUBLE BOOP!','TRIPLE BOOP!'][event.lines];
+      audio.play('clear',event.lines);const text=event.spin?'T-SPIN!':event.lines===4?'FOUR-LINE BOOP!':event.combo>0?`${event.combo+1}× COMBO!`:['','NICE CLEAR!','DOUBLE BOOP!','TRIPLE BOOP!'][event.lines];
       $('clear-announcement').textContent=text;$('clear-announcement').classList.remove('show');void $('clear-announcement').offsetWidth;$('clear-announcement').classList.add('show');
     }
     if(event.type==='attack')for(const id of Object.keys(event.targets)){
@@ -263,8 +263,25 @@ $('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('invite').
 $('help').onclick=()=>{keys.clear();$('help-dialog').showModal();};
 $('help-dialog').querySelectorAll('.close-dialog,.close-help').forEach(el=>el.onclick=()=>{$('help-dialog').close();$('help').blur();});
 $('help-dialog').addEventListener('click',event=>{if(event.target===$('help-dialog')){const r=$('help-dialog').getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)$('help-dialog').close();}});
-$('sound').onclick=async()=>{try{const enabled=await audio.toggle();$('sound').setAttribute('aria-pressed',String(enabled));$('sound').setAttribute('aria-label',enabled?'Turn Music Off':'Turn Music On');$('sound-label').textContent=enabled?'Sound On':'Sound Off';$('sound').blur();}catch(error){toast(error.message);}};
-window.addEventListener('arena-audio',({detail})=>{const {enabled,title}=detail;$('sound').setAttribute('aria-pressed',String(enabled));$('sound').setAttribute('aria-label',enabled?'Turn Music Off':'Turn Music On');$('sound-label').textContent=enabled?'Sound On':'Sound Off';$('sound').title=enabled?`Now Playing: ${title}`:'Classic Tetris Melody · Korobeiniki';});
+let musicWanted=saved('beepboop-sound','on')!=='off';
+function showSound(enabled,title){
+  $('sound').setAttribute('aria-pressed',String(enabled));$('sound').setAttribute('aria-label',enabled?'Turn Music Off':'Turn Music On');
+  $('sound-label').textContent=enabled?'Sound On':'Sound Off';$('sound').title=title;
+}
+function startMusic(event){
+  if(!musicWanted||event?.target.closest?.('#sound'))return;
+  audio.start().catch(()=>{if(musicWanted)showSound(true,'Music Will Start With Your Next Click Or Keypress');});
+}
+$('sound').onclick=async()=>{
+  musicWanted=!musicWanted;save('beepboop-sound',musicWanted?'on':'off');
+  showSound(musicWanted,musicWanted?'Starting Music…':'Classic Tetris Melody · Korobeiniki');$('sound').blur();
+  try{if(musicWanted)await audio.start();else await audio.setEnabled(false);}
+  catch(error){musicWanted=false;showSound(false,'Click To Retry Music');toast(error.message);}
+};
+window.addEventListener('arena-audio',({detail})=>showSound(detail.enabled,detail.enabled?`Now Playing: ${detail.title}`:'Classic Tetris Melody · Korobeiniki'));
+window.addEventListener('pointerdown',startMusic,{capture:true});window.addEventListener('keydown',startMusic,{capture:true});
+showSound(musicWanted,musicWanted?'Music Starts Automatically With Your First Click Or Keypress':'Classic Tetris Melody · Korobeiniki');
+if(musicWanted)startMusic();
 $('watch').onclick=()=>{watchedRound=round;$('result-dialog').close();};
 $('result-dialog').addEventListener('cancel',()=>{watchedRound=round;});
 $('rematch').onclick=()=>{practice=false;send({type:'rematch'});$('result-dialog').close();};

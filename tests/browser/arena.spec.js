@@ -21,6 +21,8 @@ test('landing, instructions, sound and narrow layout',async({page})=>{
   await page.screenshot({path:path.join(shots,'arena-desktop.png'),fullPage:true});
   await page.getByRole('button',{name:'How To Play'}).click();await expect(page.getByRole('heading',{name:'Stack. Clear. Outlast.'})).toBeVisible();
   await page.getByRole('button',{name:"Let's Boop"}).click();
+  await expect(page.getByRole('button',{name:'Turn Music Off',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Turn Music Off',exact:true}).click();
   await page.getByRole('button',{name:'Turn Music On',exact:true}).click();
   await expect(page.getByRole('button',{name:'Turn Music Off',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Turn Music Off',exact:true}).click();
@@ -72,8 +74,6 @@ test('loss shows a rotten apple, winner gets the secret pig, rematch keeps the r
 
 test('practice launches a real match with five bots',async({page})=>{
   const t=track(page);await page.goto('/');
-  await page.getByRole('button',{name:'Turn Music On',exact:true}).click();
-  await expect(page.locator('#sound')).toHaveAttribute('title','Now Playing: Korobeiniki');
   await page.getByRole('button',{name:'Just Me? Play With Bots'}).click();
   await expect.poll(()=>t.state?.phase).toBe('playing');expect(t.state.players.filter(p=>p.bot)).toHaveLength(5);
   await expect(page.locator('#sound')).toHaveAttribute('title','Now Playing: Korobeiniki');
@@ -87,6 +87,7 @@ test('practice launches a real match with five bots',async({page})=>{
 
 
 test('long music survives round changes and overlaps tracks without a hard restart',async({page})=>{
+  await page.addInitScript(()=>localStorage.setItem('beepboop-sound','off'));
   await page.goto('/');
   await page.evaluate(async()=>{const {ArenaAudio}=await import('/audio.js');window.soundCheck=new ArenaAudio();});
   await page.locator('body').evaluate(body=>{const button=document.createElement('button');button.id='audio-test';button.textContent='Start Audio Check';button.onclick=()=>window.soundCheck.toggle();body.append(button);});
@@ -109,4 +110,52 @@ test('long music survives round changes and overlaps tracks without a hard resta
   await expect.poll(()=>page.evaluate(()=>soundCheck.track)).toBe(1);
   await expect.poll(()=>page.evaluate(()=>soundCheck.players[0].paused)).toBe(true);
   expect(await page.evaluate(()=>soundCheck.music.paused)).toBe(false);
+});
+
+test('music defaults on, produces audio on first interaction, and remembers mute',async({page})=>{
+  await page.addInitScript(()=>{
+    window.musicPlayers=[];window.musicMeters=[];
+    const NativeAudio=window.Audio;window.Audio=function(src){const media=new NativeAudio(src);musicPlayers.push(media);return media;};
+    const NativeContext=window.AudioContext||window.webkitAudioContext;
+    window.AudioContext=class extends NativeContext{createGain(){const gain=super.createGain(),meter=this.createAnalyser();meter.fftSize=2048;gain.connect(meter);musicMeters.push(meter);return gain;}};
+  });
+  const signal=()=>page.evaluate(()=>Math.max(0,...musicMeters.map(meter=>{const data=new Float32Array(meter.fftSize);meter.getFloatTimeDomainData(data);return Math.sqrt(data.reduce((sum,x)=>sum+x*x,0)/data.length);})));
+  await page.goto('/');await expect(page.locator('#sound')).toHaveAttribute('aria-pressed','true');
+  await page.locator('#nickname').click();await expect.poll(signal).toBeGreaterThan(.001);
+  await expect(page.locator('#sound')).toHaveAttribute('title','Now Playing: Korobeiniki');
+  await page.locator('#sound').click();expect(await page.evaluate(()=>musicPlayers.every(p=>p.paused))).toBe(true);
+  await page.reload();await page.locator('#nickname').click();await expect(page.locator('#sound')).toHaveAttribute('aria-pressed','false');
+  expect(await page.evaluate(()=>musicPlayers.every(p=>p.paused&&p.currentTime===0))).toBe(true);
+  await page.locator('#sound').click();await expect.poll(signal).toBeGreaterThan(.001);
+  await page.reload();await expect(page.locator('#sound')).toHaveAttribute('aria-pressed','true');
+  await page.locator('#nickname').press('KeyA');await expect.poll(signal).toBeGreaterThan(.001);
+});
+
+test('real line clears choose bo and beep effects and muted effects are silent',async({page})=>{
+  const {createArena}=await import('../../server/index.js');const app=createArena();
+  await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));const url=`http://127.0.0.1:${app.server.address().port}`;
+  try{
+    const observed=track(page);await page.goto(url);
+    await page.evaluate(async()=>{const {ArenaAudio}=await import('/audio.js');const clear=ArenaAudio.prototype.clear;window.clearLines=[];ArenaAudio.prototype.clear=function(lines){clearLines.push(lines);return clear.call(this,lines);};});
+    await page.locator('#nickname').fill('Sound Tester');await page.locator('#create').click();await expect(page.locator('#lobby')).toBeVisible();
+    const room=[...app.rooms.values()][0];room.addBot();room.players[0].ready=true;room.start(Date.now()-3001);room.players[1].botAt=Date.now()+60000;room.tick(Date.now());
+    await expect.poll(()=>observed.state?.phase).toBe('playing');
+    for(const lines of [1,4]){
+      const game=room.players[0].game;game.board=Array.from({length:22},()=>Array(10).fill(0));
+      for(let y=22-lines;y<22;y++)game.board[y]=Array.from({length:10},(_,x)=>x===5?0:'J');
+      game.active={type:'I',x:3,y:0,r:1};game.fall=0;game.lock=0;
+      await expect.poll(()=>observed.me?.game.board.flat().filter(Boolean).length).toBe(lines*9);
+      await page.keyboard.press('Space');await expect.poll(()=>page.evaluate(()=>clearLines.at(-1))).toBe(lines);
+    }
+    expect(await page.evaluate(()=>clearLines)).toEqual([1,4]);
+    const peaks=await page.evaluate(async()=>{
+      const {ArenaAudio}=await import('/audio.js'),values=[];
+      for(const [lines,enabled]of [[1,true],[4,true],[4,false]]){
+        const audio=new ArenaAudio();audio.ctx=new OfflineAudioContext(1,44100,44100);audio.enabled=enabled;audio.play('clear',lines);
+        const rendered=await audio.ctx.startRendering();values.push(rendered.getChannelData(0).reduce((peak,x)=>Math.max(peak,Math.abs(x)),0));
+      }return values;
+    });
+    expect(peaks[0]).toBeGreaterThan(.01);expect(peaks[1]).toBeGreaterThan(.01);expect(Math.max(...peaks)).toBeLessThan(1);expect(peaks[2]).toBe(0);
+    expect(observed.errors).toEqual([]);
+  }finally{await app.close();}
 });
