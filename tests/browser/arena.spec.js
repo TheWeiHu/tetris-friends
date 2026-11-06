@@ -71,8 +71,16 @@ test('loss shows a rotten apple, winner gets the secret pig, rematch keeps the r
 });
 
 test('practice launches a real match with five bots',async({page})=>{
-  const t=track(page);await page.goto('/');await page.getByRole('button',{name:'Just Me? Play With Bots'}).click();
+  const t=track(page);await page.goto('/');
+  await page.getByRole('button',{name:'Turn Music On',exact:true}).click();
+  await expect(page.locator('#sound')).toHaveAttribute('title','Now Playing: Beepboop Bounce');
+  await page.getByRole('button',{name:'Just Me? Play With Bots'}).click();
   await expect.poll(()=>t.state?.phase).toBe('playing');expect(t.state.players.filter(p=>p.bot)).toHaveLength(5);
+  await expect(page.locator('#sound')).toHaveAttribute('title','Now Playing: Puzzle Sprint');
+  const duration=await page.evaluate(async()=>{
+    const context=new AudioContext();try{const data=await(await fetch('/assets/puzzle-sprint.m4a')).arrayBuffer();return (await context.decodeAudioData(data)).duration;}finally{await context.close();}
+  });expect(duration).toBeGreaterThan(26);
   await expect.poll(()=>t.state.players.filter(p=>p.bot).some(p=>p.game.pieces>0)).toBe(true);
-  await page.locator('#leave-match').click();await expect(page.locator('#welcome')).toBeVisible();expect(t.errors).toEqual([]);
+  await page.locator('#leave-match').click();await expect(page.locator('#welcome')).toBeVisible();
+  await expect(page.locator('#sound')).toHaveAttribute('title','Now Playing: Beepboop Bounce');expect(t.errors).toEqual([]);
 });

@@ -150,6 +150,7 @@ function renderLobby(me){
 }
 function renderState(){
   const me=state.players.find(p=>p.id===state.me),playing=['countdown','playing','finished'].includes(state.phase);
+  audio.setMode(['countdown','playing'].includes(state.phase)?'battle':'room');
   document.body.classList.toggle('in-game',playing);document.body.classList.toggle('spectating',!!me.game&&!me.game.alive);
   $('welcome').hidden=true;$('lobby').hidden=state.phase!=='lobby';$('match-banner').hidden=!playing;
   $('board-shade').hidden=playing;$('my-name').textContent=me.name;$('my-avatar').innerHTML=beep(me.avatar,me.game&&!me.game.alive?'lost':'happy');
@@ -211,6 +212,7 @@ function showResult(finished){
   if(!$('result-dialog').open)$('result-dialog').showModal();audio.play(won?'win':'lose');
 }
 function resetUI(){
+  audio.setMode('room');
   state=null;ownGame=null;inputs=[];keys.clear();lobbySignature='';document.body.classList.remove('in-game','spectating');
   $('welcome').hidden=false;$('lobby').hidden=true;$('match-banner').hidden=true;$('board-shade').hidden=false;$('countdown').hidden=true;
   $('my-name').textContent='A New Challenger';$('lines').textContent='00';$('sent').textContent='00';$('score').textContent='0000';$('incoming-count').textContent='0';
@@ -262,6 +264,7 @@ $('help').onclick=()=>{keys.clear();$('help-dialog').showModal();};
 $('help-dialog').querySelectorAll('.close-dialog,.close-help').forEach(el=>el.onclick=()=>{$('help-dialog').close();$('help').blur();});
 $('help-dialog').addEventListener('click',event=>{if(event.target===$('help-dialog')){const r=$('help-dialog').getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)$('help-dialog').close();}});
 $('sound').onclick=async()=>{try{const enabled=await audio.toggle();$('sound').setAttribute('aria-pressed',String(enabled));$('sound').setAttribute('aria-label',enabled?'Turn Music Off':'Turn Music On');$('sound-label').textContent=enabled?'Sound On':'Sound Off';$('sound').blur();}catch(error){toast(error.message);}};
+window.addEventListener('arena-audio',({detail})=>{const {enabled,title}=detail;$('sound').setAttribute('aria-pressed',String(enabled));$('sound').setAttribute('aria-label',enabled?'Turn Music Off':'Turn Music On');$('sound-label').textContent=enabled?'Sound On':'Sound Off';$('sound').title=enabled?`Now Playing: ${title}`:'Original Beepboop And Puzzle-Game Music';});
 $('watch').onclick=()=>{watchedRound=round;$('result-dialog').close();};
 $('result-dialog').addEventListener('cancel',()=>{watchedRound=round;});
 $('rematch').onclick=()=>{practice=false;send({type:'rematch'});$('result-dialog').close();};
