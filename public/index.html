@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0c1224">
+  <meta name="description" content="Little blocks. Big boops. A private falling-block battle for 2–6 friends.">
+  <title>Beepboop Arena</title>
+  <link rel="icon" href="/assets/beep.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Beepboop Arena Home"><img src="/assets/beep.svg" alt=""><span>BEEPBOOP<span class="brand-sub">A R E N A</span></span></a>
+    <div class="top-note"><span class="spark">✦</span> Small Circles. Friendly Chaos.</div>
+    <nav aria-label="Game Options">
+      <button class="icon-button" id="sound" aria-label="Turn Music On" aria-pressed="false"><span id="sound-icon">♫</span><span id="sound-label">Sound Off</span></button>
+      <button class="icon-button" id="help"><span class="help-icon">?</span><span>How To Play</span></button>
+    </nav>
+  </header>
+  <main>
+    <section class="intro">
+      <div><div class="eyebrow"><span class="tiny-star">✦</span> THE FRIENDLY FREE-FOR-ALL</div><h1>Little Blocks. <em>Big Boops.</em></h1></div>
+      <div class="round-info"><span class="status-pill" id="status"><i></i> Ready When You Are</span><div id="round-time">2–6 Players <span>·</span> Keyboard Play</div></div>
+    </section>
+    <div class="mobile-notice">Bring A Keyboard <span>This arena is made for keyboard play. You can watch here; touch controls are coming later.</span></div>
+    <div class="arena">
+      <section class="player-zone" aria-label="Your Playfield">
+        <div class="player-heading"><div class="avatar" id="my-avatar"></div><div><span class="micro-label">YOUR CORNER</span><h2 id="my-name">A New Challenger</h2></div><span class="you-tag">YOU</span></div>
+        <div class="cabinet">
+          <aside class="hold-column"><h3>Hold <kbd>C</kbd></h3><div class="piece-box"><canvas id="hold" width="96" height="80" aria-label="Held Piece"></canvas></div><div class="incoming-wrap"><h3>Incoming</h3><div id="incoming-meter" aria-label="Incoming Garbage Rows"></div><strong id="incoming-count">0</strong></div><div class="boop-sticker" id="board-mascot" aria-hidden="true"></div></aside>
+          <div class="board-frame"><div class="frame-top"><i></i><i></i><i></i><span>BEEP / 01</span></div><canvas id="board" width="300" height="600" aria-label="Your Falling-Block Board"></canvas><div class="board-shade" id="board-shade"><span class="preview-tag">A LITTLE WARM-UP</span><strong>Make Some<br><em>Room.</em></strong><span>Your Friends Are Next.</span></div><div class="countdown" id="countdown" hidden></div><div class="clear-announcement" id="clear-announcement" aria-live="polite"></div><div class="frame-bottom"><span>BOUNCE PROTOCOL</span><i></i></div></div>
+          <aside class="next-column"><h3>Next</h3><div class="next-stack"><canvas id="next" width="96" height="340" aria-label="Next Five Pieces"></canvas></div><div class="piece-note">SAME PIECES.<br>YOUR MOVES.</div></aside>
+        </div>
+        <div class="my-stats"><div><span>Lines Cleared</span><strong id="lines">00</strong></div><div><span>Rows Sent</span><strong id="sent">00</strong></div><div><span>Score</span><strong id="score">0000</strong></div></div>
+      </section>
+      <section class="room-zone" aria-label="Room And Opponents">
+        <div id="welcome" class="room-card welcome">
+          <div class="card-heading"><span class="eyebrow">GOOD COMPANY. BAD INTENTIONS.</span><span class="room-icon">↗</span></div>
+          <h2 id="welcome-title">Bring Your Favorite Rivals.</h2>
+          <p id="welcome-description">Make a room. Send the link. Let the blocks do the talking.</p>
+          <form id="join-form"><div class="entry-row"><label class="sr-only" for="nickname">Your Nickname</label><input id="nickname" name="nickname" placeholder="Your Nickname" maxlength="16" autocomplete="nickname" required><button class="primary" id="create" type="submit">Create A Room <span>↗</span></button></div><div class="avatar-picker" id="avatar-picker" role="group" aria-label="Choose Your Beepboop"></div></form>
+          <div class="welcome-bottom"><button class="text-button" id="practice">Just Me? Play With Bots <span>→</span></button><span>No Account Needed</span></div>
+          <p class="error" id="welcome-error" role="alert"></p>
+        </div>
+        <div id="lobby" class="room-card" hidden>
+          <div class="card-heading"><div><span class="eyebrow">THE GANG'S ALMOST HERE</span><h2>Your Boop Room <span id="seat-count">1 / 6</span></h2></div><button class="text-button" id="leave">Leave</button></div>
+          <div class="invite-row"><label class="sr-only" for="invite">Invite Link</label><input id="invite" readonly><button class="secondary" id="copy">Copy Link ↗</button></div>
+          <div id="seats" class="seats"></div>
+          <div class="lobby-actions"><button class="secondary" id="add-bot">+ Add A Bot</button><button class="secondary" id="ready">I'm Ready</button><button class="primary" id="start">Start Round →</button></div>
+          <p class="lobby-note" id="lobby-note">Share Your Link And Ready Up.</p>
+        </div>
+        <div id="match-banner" class="room-card match-banner" hidden><div><span class="eyebrow">A LITTLE FRIENDLY PRESSURE</span><h2 id="match-title">Last Boop Standing.</h2><p id="match-description">Clear lines to cancel incoming rows. The rest goes to your rivals.</p><div class="match-actions"><button class="text-button" id="show-results" hidden>View Results →</button><button class="text-button" id="leave-match">Leave Room</button></div></div><div id="match-mascot" aria-hidden="true"></div></div>
+        <div class="opponents-heading"><h2 id="opponents-title">The Other Boops <span id="alive-count">FIVE POTENTIAL PROBLEMS</span></h2><span class="auto-badge" title="Attacks automatically favor opponents who have received fewer rows recently.">↗ Auto-Balanced Attacks</span></div>
+        <div class="opponents" id="opponents"></div>
+        <div class="room-tip"><span>✳</span><p><strong>More Boops. Less Piling On.</strong> Attacks spread across the room. Clear lines to push back.</p></div>
+      </section>
+    </div>
+    <footer class="controls"><div><span class="micro-label">MAKE YOUR MOVE</span><span><kbd>←</kbd><kbd>→</kbd> Move</span><span><kbd>↑</kbd><kbd>Z</kbd> Rotate</span><span><kbd>↓</kbd> Soft Drop</span><span><kbd>Space</kbd> Hard Drop</span><span><kbd>C</kbd> Hold</span></div><span class="footer-note">A LITTLE CHAOS BETWEEN FRIENDS.</span></footer>
+    <div class="connection-banner" id="connection" role="status" hidden></div>
+    <div class="toast" id="toast" role="status" hidden></div>
+  </main>
+  <dialog id="help-dialog" aria-labelledby="help-title"><button class="close-dialog" aria-label="Close Instructions">×</button><span class="eyebrow">WELCOME TO THE BOOP ROOM</span><h2 id="help-title">Stack. Clear. Outlast.</h2><p>Fill a horizontal row to clear it. Keep your stack below the top. The last Beepboop standing wins.</p><div class="rules-grid"><article><b>01 / Find Your People</b><p>Create a private room and share its link. Friends choose a nickname, ready up, and the host starts. Bots can fill empty seats.</p></article><article><b>02 / Send A Little Trouble</b><p>Double clears send 1 row; triples send 2; four-line clears send 4. T-spins, combos, and back-to-back clears earn extra rows.</p></article><article><b>03 / No Pile-Ons</b><p>Rows go to opponents with the least recent incoming pressure. Each row goes to one opponent. Nobody picks on one person.</p></article><article><b>04 / Push Back</b><p>Incoming rows wait 1.8 seconds. Your attacks cancel them first. At most 4 rows rise after a piece that clears no lines.</p></article></div><p class="muted">Everyone gets the same piece sequence. Gravity speeds up every 30 seconds. A disconnected player has 20 seconds to return while their board keeps falling. Live matches do not pause.</p><div class="help-controls"><kbd>← →</kbd> Move <kbd>↑ / X</kbd> Clockwise <kbd>Z</kbd> Counterclockwise <kbd>↓</kbd> Soft Drop <kbd>Space</kbd> Hard Drop <kbd>C / Shift</kbd> Hold</div><button class="primary close-help">Let's Boop →</button></dialog>
+  <dialog id="result-dialog" aria-labelledby="result-title"><div id="result-art"></div><span class="eyebrow" id="result-eyebrow"></span><h2 id="result-title"></h2><p id="result-copy"></p><div id="result-stats" class="result-stats"></div><div class="result-actions"><button class="primary" id="rematch">One More Boop →</button><button class="secondary" id="watch">Watch The Room</button></div><p class="muted" id="result-note"></p><div id="secret-pig" aria-hidden="true"></div></dialog>
+</body>
+</html>
