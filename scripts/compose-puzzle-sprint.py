@@ -108,7 +108,7 @@ def render(output):
         wav=Path(tmp)/'puzzle-sprint.wav';encoded=Path(tmp)/'puzzle-sprint.m4a'
         with wave.open(str(wav),'wb') as f:
             f.setnchannels(2);f.setsampwidth(2);f.setframerate(RATE);f.writeframes((mix*32767).astype('<i2').tobytes())
-        subprocess.run(['ffmpeg','-nostdin','-hide_banner','-loglevel','error','-i',str(wav),'-c:a','aac','-b:a','128k',str(encoded)],check=True)
+        subprocess.run(['ffmpeg','-nostdin','-hide_banner','-loglevel','error','-i',str(wav),'-c:a','aac','-b:a','128k','-movflags','+faststart',str(encoded)],check=True)
         encoded.replace(output)
     print(json.dumps({'title':'Korobeiniki','bpm':BPM,'key':'A minor','seconds':round(duration,3),'peak_dbfs':round(20*math.log10(float(np.max(np.abs(mix)))),2),'clipped_samples':int((np.abs(mix)>=1).sum()),'generation_cost_usd':0,'sections':[{'title':name,'at_seconds':round(i*16*4*BEAT,3)} for i,name in enumerate(sections)]}))
 
