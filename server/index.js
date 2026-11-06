@@ -60,7 +60,11 @@ export function createArena({origin=process.env.PUBLIC_ORIGIN,maxRooms=100,trust
     }catch(error){if(!res.headersSent)json(res,error.code==='ENOENT'?404:400,{error:error.code==='ENOENT'?'Not found.':error.message});else res.end();}
   });
   server.requestTimeout=15000;server.headersTimeout=10000;
-  const wss=new WebSocketServer({noServer:true,maxPayload:2048,perMessageDeflate:false});
+  const wss=new WebSocketServer({noServer:true,maxPayload:2048,perMessageDeflate:{
+    // Full six-player snapshots repeat board data; compress each independently.
+    threshold:1024,serverNoContextTakeover:true,clientNoContextTakeover:true,
+    zlibDeflateOptions:{level:1,memLevel:7},concurrencyLimit:4
+  }});
   server.on('upgrade',(req,socket,head)=>{
     if(req.url!=='/socket'||!allowed(req)||!rate(req,'connect',90)){socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');socket.destroy();return;}
     wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws));

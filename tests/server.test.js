@@ -10,11 +10,12 @@ async function fixture(t){
   const post=(route,data,origin=url)=>fetch(url+route,{method:'POST',headers:{'Content-Type':'application/json','Origin':origin},body:JSON.stringify(data)});
   return {...app,url,post};
 }
-function connect(url,auth){
+function connect(url,auth,options={}){
   return new Promise((resolve,reject)=>{
-    const ws=new WebSocket(url.replace('http:','ws:')+'/socket',{origin:url});
-    ws.on('error',reject);ws.once('open',()=>ws.send(JSON.stringify({type:'auth',...auth})));
-    ws.once('message',raw=>resolve({ws,data:JSON.parse(raw)}));
+    const ws=new WebSocket(url.replace('http:','ws:')+'/socket',{origin:url,...options});
+    let bytesAtOpen;
+    ws.on('error',reject);ws.once('open',()=>{bytesAtOpen=ws._socket.bytesRead;ws.send(JSON.stringify({type:'auth',...auth}));});
+    ws.once('message',raw=>resolve({ws,data:JSON.parse(raw),wireBytes:ws._socket.bytesRead-bytesAtOpen}));
   });
 }
 function message(ws,predicate){
@@ -56,4 +57,39 @@ test('a reconnected player keeps their board and ready-up cannot change a live m
   const before=structuredClone(r.players[0].game.board);host.ws.close();await new Promise(resolve=>host.ws.once('close',resolve));
   const again=await connect(url,a);assert.deepEqual(again.data.players.find(p=>p.id===a.player).game.board,before);
   const status=message(guest.ws,d=>d.type==='state');guest.ws.send(JSON.stringify({type:'ready',ready:false}));assert.equal((await status).phase,'playing');
+});
+
+test('six-player snapshots compress on the wire and uncompressed clients keep playing',async t=>{
+  const {url,post,rooms}=await fixture(t);
+  const first=await(await post('/api/rooms',{name:'Host'})).json(),auth=[first];
+  for(let i=1;i<6;i++)auth.push(await(await post(`/api/rooms/${first.room}/join`,{name:`Beep ${i}`})).json());
+  const clients=[];
+  for(let i=0;i<auth.length;i++)clients.push(await connect(url,auth[i],i===1?{perMessageDeflate:false}:{}));
+  assert.equal(clients[1].ws.extensions,'');
+  const room=rooms.get(first.room);
+  for(const p of room.players)p.ready=true;
+  room.start(Date.now()-3001);room.tick(Date.now());
+  for(const [i,p]of room.players.entries())p.game.board.at(-1).fill(i+1,0,9);
+  const expectedBoards=room.players.map(p=>structuredClone(p.game.board));
+  const fallbackState=message(clients[1].ws,d=>d.type==='state'&&d.phase==='playing');
+  // A fresh connection gives a clean socket-byte baseline after its HTTP upgrade.
+  const compressed=await connect(url,first);
+  assert.equal(compressed.ws.extensions,'permessage-deflate');
+  assert.equal(compressed.data.players.length,6);
+  assert.deepEqual(compressed.data.players.map(p=>p.game.board),expectedBoards);
+  assert.ok(compressed.wireBytes<Buffer.byteLength(JSON.stringify(compressed.data))/2,
+    'compressed snapshot including framing should use less than half the JSON bytes');
+  assert.deepEqual((await fallbackState).players.map(p=>p.game.board),expectedBoards);
+  const acknowledged=message(clients[1].ws,d=>d.players.find(p=>p.id===auth[1].player).ack===1);
+  clients[1].ws.send(JSON.stringify({type:'input',round:1,seq:1,action:'drop'}));
+  assert.equal((await acknowledged).players.find(p=>p.id===auth[1].player).game.pieces,1);
+});
+
+test('compressed input remains subject to the 2048-byte limit after inflation',async t=>{
+  const {url,post}=await fixture(t),auth=await(await post('/api/rooms',{name:'Host'})).json();
+  const {ws}=await connect(url,auth);
+  assert.equal(ws.extensions,'permessage-deflate');
+  const closed=new Promise(resolve=>ws.once('close',resolve));
+  ws.send(JSON.stringify({type:'ready',ready:true,padding:'x'.repeat(4096)}),{compress:true});
+  assert.equal(await closed,1009);
 });
